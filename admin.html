@@ -7,7 +7,6 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="/index.html"></script>
     <style>
         /* Custom CSS */
         .table-container {
@@ -224,7 +223,7 @@
             const { data: { session }, error } = await supabaseClient.auth.getSession();
             if (error || !session) {
                 alert('Você precisa estar logado para acessar o painel.');
-                window.location.href = 'index.html';
+                window.location.href = '/index.html';
             }
         }
 
@@ -582,7 +581,7 @@
         // Logout
         logoutBtn.addEventListener('click', async () => {
             await supabaseClient.auth.signOut();
-            window.location.href = 'index.html';
+            window.location.href = '/index.html';
         });
 
         // Inicializar
@@ -593,5 +592,5 @@
             await renderOrders();
         });
     </script>
-</body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'93c97e6e1ef9afa4',t:'MTc0NjcxMjkzNi4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
