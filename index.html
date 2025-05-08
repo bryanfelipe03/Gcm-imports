@@ -7,9 +7,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="/admin.html"></script>
     <style>
-        /* Custom CSS */
         .product-card:hover {
             transform: translateY(-5px);
             box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
@@ -38,6 +36,44 @@
         .social-icon:hover {
             transform: scale(1.1);
             transition: transform 0.3s ease;
+        }
+        #products-container {
+            max-height: 80vh;
+            overflow-y: auto;
+            scrollbar-width: thin;
+            scrollbar-color: #3b82f6 #e5e7eb;
+        }
+        #products-container::-webkit-scrollbar {
+            width: 8px;
+        }
+        #products-container::-webkit-scrollbar-track {
+            background: #e5e7eb;
+        }
+        #products-container::-webkit-scrollbar-thumb {
+            background: #3b82f6;
+            border-radius: 4px;
+        }
+        #cart-items {
+            max-height: 50vh;
+            overflow-y: auto;
+            scrollbar-width: thin;
+            scrollbar-color: #3b82f6 #e5e7eb;
+        }
+        #cart-items::-webkit-scrollbar {
+            width: 8px;
+        }
+        #cart-items::-webkit-scrollbar-track {
+            background: #e5e7eb;
+        }
+        #cart-items::-webkit-scrollbar-thumb {
+            background: #3b82f6;
+            border-radius: 4px;
+        }
+        .no-products {
+            text-align: center;
+            color: #6b7280;
+            font-size: 1.2rem;
+            margin-top: 2rem;
         }
     </style>
 </head>
@@ -70,9 +106,7 @@
         <!-- Categories -->
         <div class="mb-8">
             <h2 class="text-2xl font-bold text-gray-800 mb-4">Categorias</h2>
-            <div id="categories-container" class="flex flex-wrap gap-2">
-                <!-- Categories will be loaded dynamically -->
-            </div>
+            <div id="categories-container" class="flex flex-wrap gap-2"></div>
         </div>
 
         <!-- Sort Options -->
@@ -92,9 +126,7 @@
         </div>
 
         <!-- Products Grid -->
-        <div id="products-container" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            <!-- Products will be loaded here by JavaScript -->
-        </div>
+        <div id="products-container" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6"></div>
     </main>
 
     <!-- Footer -->
@@ -153,7 +185,6 @@
                 </button>
             </div>
             <div id="cart-items" class="p-6 overflow-y-auto max-h-[50vh]">
-                <!-- Cart items will be loaded here -->
                 <p id="empty-cart-message" class="text-gray-500 text-center py-4">Seu carrinho está vazio</p>
             </div>
             <div class="border-t px-6 py-4 bg-gray-50">
@@ -280,8 +311,10 @@
             const { data, error } = await supabaseClient.from('categories').select('*');
             if (error) {
                 console.error('Erro ao buscar categorias:', error);
+                alert('Erro ao carregar categorias. Verifique o console.');
                 return [];
             }
+            console.log('Categorias carregadas:', data);
             return data;
         }
 
@@ -290,8 +323,10 @@
             const { data, error } = await supabaseClient.from('products').select('*');
             if (error) {
                 console.error('Erro ao buscar produtos:', error);
+                alert('Erro ao carregar produtos. Verifique o console.');
                 return [];
             }
+            console.log('Produtos carregados:', data);
             return data;
         }
 
@@ -309,7 +344,6 @@
                 categoriesContainer.appendChild(button);
             });
 
-            // Adicionar eventos aos botões de categoria
             document.querySelectorAll('.category-btn').forEach(btn => {
                 btn.addEventListener('click', () => {
                     document.querySelectorAll('.category-btn').forEach(b => b.classList.remove('active'));
@@ -322,21 +356,26 @@
 
         // Initialize
         async function init() {
-            products = await fetchProducts();
-            await loadCategoryButtons();
-            renderProducts();
-            setupEventListeners();
+            try {
+                productsContainer.innerHTML = '<p class="text-center text-gray-500">Carregando produtos...</p>';
+                products = await fetchProducts();
+                await loadCategoryButtons();
+                renderProducts();
+                setupEventListeners();
+            } catch (error) {
+                console.error('Erro na inicialização:', error);
+                alert('Erro ao inicializar a página. Verifique o console.');
+                productsContainer.innerHTML = '<p class="no-products">Erro ao carregar produtos.</p>';
+            }
         }
 
         // Setup Event Listeners
         function setupEventListeners() {
-            // Sort options
             sortOptions.addEventListener('change', () => {
                 currentSort = sortOptions.value;
                 renderProducts();
             });
 
-            // Cart modal
             cartBtn.addEventListener('click', () => {
                 cartModal.classList.remove('hidden');
             });
@@ -345,7 +384,6 @@
                 cartModal.classList.add('hidden');
             });
 
-            // Admin modal
             profileBtn.addEventListener('click', () => {
                 adminModal.classList.remove('hidden');
             });
@@ -359,7 +397,6 @@
                 const email = document.getElementById('admin-email').value;
                 const password = document.getElementById('admin-password').value;
 
-                // Verificar login com Supabase Auth
                 const { data, error } = await supabaseClient.auth.signInWithPassword({
                     email: email,
                     password: password
@@ -371,11 +408,10 @@
                 } else {
                     alert('Login bem-sucedido! Redirecionando para o painel...');
                     adminModal.classList.add('hidden');
-                    window.location.href = 'admin.html';
+                    window.location.href = '/admin.html';
                 }
             });
 
-            // Checkout
             checkoutBtn.addEventListener('click', () => {
                 if (cart.length > 0) {
                     cartModal.classList.add('hidden');
@@ -393,10 +429,8 @@
                 const clientAddress = document.getElementById('client-address').value;
                 const paymentMethod = document.querySelector('input[name="payment"]:checked').value;
 
-                // Calculate total
                 const total = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
 
-                // Salvar pedido no Supabase
                 const { error } = await supabaseClient.from('orders').insert({
                     client_name: clientName,
                     client_address: clientAddress,
@@ -411,7 +445,6 @@
                     return;
                 }
 
-                // Create WhatsApp message
                 let message = `🛒 *Nova Compra - GCM-Imports* 🛒\n\n`;
                 message += `🙂 *Cliente:* ${clientName}\n`;
                 message += `📍 *Endereço:* ${clientAddress}\n`;
@@ -425,36 +458,24 @@
                 message += `\n💲 *Total da Compra:* R$ ${total.toFixed(2)}\n\n`;
                 message += `👍 *Obrigado pela preferência!* 👍`;
 
-                // Log the message for debugging
-                console.log('Mensagem para WhatsApp:', message);
-
-                // Encode for URL
                 const encodedMessage = encodeURIComponent(message);
-                console.log('Mensagem codificada:', encodedMessage);
+                const whatsappUrl = `https://wa.me/5518996762614?text=${encodedMessage}`;
 
-                const whatsappUrl = `https://wa.me/5518996762614?text?text=${encodedMessage}`;
-
-                // Open WhatsApp
                 window.open(whatsappUrl, '_blank');
 
-                // Reset cart
                 cart = [];
                 updateCart();
                 checkoutModal.classList.add('hidden');
-
-                // Show success message
                 alert('Compra finalizada com sucesso! Um WhatsApp foi aberto com os detalhes da compra.');
             });
         }
 
         // Render Products
         function renderProducts() {
-            // Filter by category
             let filteredProducts = currentCategory === 'all'
                 ? [...products]
                 : products.filter(p => p.category === currentCategory);
 
-            // Sort products
             switch (currentSort) {
                 case 'price-high':
                     filteredProducts.sort((a, b) => b.price - a.price);
@@ -469,16 +490,27 @@
                     filteredProducts = [...filteredProducts].sort(() => Math.random() - 0.5);
             }
 
-            // Clear container
             productsContainer.innerHTML = '';
 
-            // Render products
+            if (filteredProducts.length === 0) {
+                productsContainer.innerHTML = `<p class="no-products">Nenhum produto encontrado.</p>`;
+                console.warn('Nenhum produto para renderizar. Verifique a tabela "products" no Supabase.');
+                return;
+            }
+
             filteredProducts.forEach(product => {
+                const isValidImage = product.image && product.image.includes('supabase.co/storage/v1/object/public/product-images/');
+                const imageSrc = isValidImage
+                    ? product.image
+                    : 'https://via.placeholder.com/150?text=Imagem+Indisponível';
+                if (!isValidImage && product.image) {
+                    console.warn(`URL de imagem inválida para o produto ${product.name}: ${product.image}`);
+                }
                 const productCard = document.createElement('div');
                 productCard.className = 'product-card bg-white rounded-lg overflow-hidden shadow-md transition duration-300';
                 productCard.innerHTML = `
                     <div class="h-48 overflow-hidden">
-                        <img src="${product.image}" alt="${product.name}" class="w-full h-full object-contain">
+                        <img src="${imageSrc}" alt="${product.name}" class="w-full h-full object-contain" loading="lazy">
                     </div>
                     <div class="p-4">
                         <h3 class="font-bold text-lg mb-1 text-gray-800">${product.name}</h3>
@@ -491,7 +523,6 @@
                 productsContainer.appendChild(productCard);
             });
 
-            // Add event listeners to "Add to Cart" buttons
             document.querySelectorAll('.add-to-cart').forEach(btn => {
                 btn.addEventListener('click', () => {
                     const productId = parseInt(btn.dataset.id);
@@ -514,7 +545,6 @@
 
             updateCart();
 
-            // Show notification
             const notification = document.createElement('div');
             notification.className = 'fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-md shadow-lg flex items-center';
             notification.innerHTML = `
@@ -539,10 +569,17 @@
 
                 let itemsHTML = '';
                 cart.forEach(item => {
+                    const isValidImage = item.image && item.image.includes('supabase.co/storage/v1/object/public/product-images/');
+                    const imageSrc = isValidImage
+                        ? item.image
+                        : 'https://via.placeholder.com/50?text=Imagem+Indisponível';
+                    if (!isValidImage && item.image) {
+                        console.warn(`URL de imagem inválida no carrinho para o produto ${item.name}: ${item.image}`);
+                    }
                     itemsHTML += `
                         <div class="flex justify-between items-center py-3 border-b">
                             <div class="flex items-center">
-                                <img src="${item.image}" alt="${item.name}" class="w-12 h-12 object-contain mr-3">
+                                <img src="${imageSrc}" alt="${item.name}" class="w-12 h-12 object-contain mr-3" loading="lazy">
                                 <div>
                                     <h4 class="font-medium text-gray-800">${item.name}</h4>
                                     <p class="text-sm text-gray-500">R$ ${item.price.toFixed(2)}</p>
