@@ -7,9 +7,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="/index.html"></script>
     <style>
-        /* Custom CSS */
         .table-container {
             overflow-x: auto;
         }
@@ -224,7 +222,7 @@
             const { data: { session }, error } = await supabaseClient.auth.getSession();
             if (error || !session) {
                 alert('Você precisa estar logado para acessar o painel.');
-                window.location.href = 'index.html';
+                window.location.href = '/';
             }
         }
 
@@ -235,6 +233,7 @@
                 console.error('Erro ao buscar categorias:', error);
                 return [];
             }
+            console.log('Categorias carregadas:', data);
             return data;
         }
 
@@ -245,6 +244,7 @@
                 console.error('Erro ao buscar produtos:', error);
                 return [];
             }
+            console.log('Produtos carregados:', data);
             return data;
         }
 
@@ -288,7 +288,6 @@
                 categoriesTable.appendChild(row);
             });
 
-            // Adicionar eventos aos botões de excluir
             document.querySelectorAll('.delete-category').forEach(btn => {
                 btn.addEventListener('click', () => deleteCategory(btn.dataset.id, btn.dataset.slug));
             });
@@ -299,13 +298,18 @@
             const products = await fetchProducts();
             productsTable.innerHTML = '';
             products.forEach(product => {
+                const isValidImage = product.image && product.image.includes('supabase.co/storage/v1/object/public/product-images/');
+                const imageLink = isValidImage ? product.image : '#';
+                if (!isValidImage && product.image) {
+                    console.warn(`URL de imagem inválida para o produto ${product.name}: ${product.image}`);
+                }
                 const row = document.createElement('tr');
                 row.innerHTML = `
                     <td class="py-3 px-4">${product.id}</td>
                     <td class="py-3 px-4">${product.name}</td>
                     <td class="py-3 px-4">${product.category}</td>
                     <td class="py-3 px-4">${product.price.toFixed(2)}</td>
-                    <td class="py-3 px-4"><a href="${product.image}" target="_blank">Ver</a></td>
+                    <td class="py-3 px-4"><a href="${imageLink}" target="_blank">${isValidImage ? 'Ver' : 'N/A'}</a></td>
                     <td class="py-3 px-4">${product.description || 'Sem descrição'}</td>
                     <td class="py-3 px-4">${product.popular}</td>
                     <td class="py-3 px-4">
@@ -320,7 +324,6 @@
                 productsTable.appendChild(row);
             });
 
-            // Adicionar eventos aos botões de editar e excluir
             document.querySelectorAll('.edit-product').forEach(btn => {
                 btn.addEventListener('click', () => editProduct(btn.dataset.id));
             });
@@ -372,33 +375,37 @@
             const id = productIdInput.value;
             let imageUrl = '';
 
-            // Fazer upload da imagem, se houver
             const file = productImageInput.files[0];
             if (file) {
-                const fileName = `${Date.now()}_${file.name}`;
+                const sanitizedFileName = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+                console.log('Fazendo upload da imagem:', sanitizedFileName);
                 const { data, error } = await supabaseClient
                     .storage
                     .from('product-images')
-                    .upload(fileName, file, {
+                    .upload(sanitizedFileName, file, {
                         cacheControl: '3600',
                         upsert: false
                     });
 
                 if (error) {
                     console.error('Erro ao fazer upload da imagem:', error);
-                    alert('Erro ao fazer upload da imagem.');
+                    alert('Erro ao fazer upload da imagem. Verifique as permissões do bucket ou o console.');
                     return;
                 }
 
-                // Obter URL pública
                 const { data: publicUrlData } = supabaseClient
                     .storage
                     .from('product-images')
-                    .getPublicUrl(fileName);
+                    .getPublicUrl(sanitizedFileName);
                 
                 imageUrl = publicUrlData.publicUrl;
+                console.log('URL pública da imagem:', imageUrl);
+                if (!imageUrl) {
+                    console.error('Falha ao obter URL pública da imagem.');
+                    alert('Erro ao obter URL da imagem. Verifique o console.');
+                    return;
+                }
             } else if (id) {
-                // Manter a URL existente ao editar, se não houver nova imagem
                 const { data: existingProduct } = await supabaseClient
                     .from('products')
                     .select('image')
@@ -411,33 +418,31 @@
             }
 
             const product = {
-                name: productNameInput.value,
+                name: productNameInput.value.trim(),
                 category: productCategoryInput.value,
                 price: parseFloat(productPriceInput.value),
                 image: imageUrl,
-                description: productDescriptionInput.value,
+                description: productDescriptionInput.value.trim() || null,
                 popular: parseInt(productPopularInput.value)
             };
 
             if (id) {
-                // Editar produto
                 const { error } = await supabaseClient
                     .from('products')
                     .update(product)
                     .eq('id', id);
                 if (error) {
                     console.error('Erro ao editar produto:', error);
-                    alert('Erro ao editar produto.');
+                    alert('Erro ao editar produto. Verifique o console.');
                     return;
                 }
             } else {
-                // Adicionar produto
                 const { error } = await supabaseClient
                     .from('products')
                     .insert(product);
                 if (error) {
                     console.error('Erro ao adicionar produto:', error);
-                    alert('Erro ao adicionar produto.');
+                    alert('Erro ao adicionar produto. Verifique o console.');
                     return;
                 }
             }
@@ -459,15 +464,16 @@
                 .single();
             if (error) {
                 console.error('Erro ao buscar produto:', error);
+                alert('Erro ao carregar produto. Verifique o console.');
                 return;
             }
             productIdInput.value = data.id;
             productNameInput.value = data.name;
             productCategoryInput.value = data.category;
             productPriceInput.value = data.price;
-            productImageInput.value = ''; // Limpar input de arquivo
-            imagePreview.src = data.image;
-            imagePreview.style.display = 'block';
+            productImageInput.value = '';
+            imagePreview.src = data.image || '';
+            imagePreview.style.display = data.image ? 'block' : 'none';
             productDescriptionInput.value = data.description || '';
             productPopularInput.value = data.popular;
             productModalTitle.textContent = 'Editar Produto';
@@ -477,7 +483,6 @@
         // Excluir produto
         async function deleteProduct(id) {
             if (!confirm('Tem certeza que deseja excluir este produto?')) return;
-            // Opcional: Excluir imagem do Storage
             const { data: product } = await supabaseClient
                 .from('products')
                 .select('image')
@@ -494,7 +499,7 @@
                 .eq('id', id);
             if (error) {
                 console.error('Erro ao excluir produto:', error);
-                alert('Erro ao excluir produto.');
+                alert('Erro ao excluir produto. Verifique o console.');
                 return;
             }
             renderProducts();
@@ -528,7 +533,6 @@
 
         // Excluir categoria
         async function deleteCategory(id, slug) {
-            // Verificar se há produtos associados
             const { data: products } = await supabaseClient
                 .from('products')
                 .select('id')
@@ -548,7 +552,7 @@
 
             if (error) {
                 console.error('Erro ao excluir categoria:', error);
-                alert('Erro ao excluir categoria.');
+                alert('Erro ao excluir categoria. Verifique o console.');
                 return;
             }
 
@@ -582,7 +586,7 @@
         // Logout
         logoutBtn.addEventListener('click', async () => {
             await supabaseClient.auth.signOut();
-            window.location.href = 'index.html';
+            window.location.href = '/';
         });
 
         // Inicializar
