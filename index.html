@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
+        /* Estilos mantidos iguais */
         .product-card:hover {
             transform: translateY(-5px);
             box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
@@ -42,11 +43,13 @@
 <body class="bg-gray-100 font-sans">
     <!-- Header, Main, Footer, Modals mantidos iguais -->
     <script>
+        // Configuração do Supabase
         const supabaseUrl = 'https://rtpxtxqkymqsstmtclwz.supabase.co';
         const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ0cHh0eHFreW1xc3N0bXRjbHd6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY2NjYxMDksImV4cCI6MjA2MjI0MjEwOX0.seEDFpblmWB6EXSjDq20AfoTvt_siZ-tVfmgDPqKTlY';
         const { createClient } = supabase;
         const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
+        // DOM Elements (mantidos iguais)
         const productsContainer = document.getElementById('products-container');
         const categoriesContainer = document.getElementById('categories-container');
         const sortOptions = document.getElementById('sort-options');
@@ -66,12 +69,14 @@
         const closeCheckout = document.getElementById('close-checkout');
         const checkoutForm = document.getElementById('checkout-form');
 
+        // State (mantido igual)
         let currentCategory = 'all';
         let currentSort = 'random';
         let cart = [];
         let products = [];
         let categories = [];
 
+        // Funções de busca e renderização mantidas iguais
         async function fetchCategories() {
             const { data, error } = await supabaseClient.from('categories').select('*');
             if (error) {
@@ -121,6 +126,7 @@
         }
 
         function setupEventListeners() {
+            // Outros eventos mantidos iguais
             sortOptions.addEventListener('change', () => {
                 currentSort = sortOptions.value;
                 renderProducts();
@@ -158,10 +164,11 @@
                 } else {
                     alert('Login bem-sucedido! Redirecionando para o painel...');
                     adminModal.classList.add('hidden');
-                    window.location.href = '/admin';
+                    window.location.href = '/admin'; // Atualizado para usar a rota /admin
                 }
             });
 
+            // Checkout e outros eventos mantidos iguais
             checkoutBtn.addEventListener('click', () => {
                 if (cart.length > 0) {
                     cartModal.classList.add('hidden');
@@ -244,13 +251,9 @@
             filteredProducts.forEach(product => {
                 const productCard = document.createElement('div');
                 productCard.className = 'product-card bg-white rounded-lg overflow-hidden shadow-md transition duration-300';
-                // Usar uma imagem padrão se product.image for inválido
-                const imageSrc = product.image && product.image.startsWith('https://') 
-                    ? product.image 
-                    : 'https://via.placeholder.com/150?text=Imagem+Indisponível';
                 productCard.innerHTML = `
                     <div class="h-48 overflow-hidden">
-                        <img src="${imageSrc}" alt="${product.name}" class="w-full h-full object-contain">
+                        <img src="${product.image}" alt="${product.name}" class="w-full h-full object-contain">
                     </div>
                     <div class="p-4">
                         <h3 class="font-bold text-lg mb-1 text-gray-800">${product.name}</h3>
@@ -308,14 +311,10 @@
 
                 let itemsHTML = '';
                 cart.forEach(item => {
-                    // Usar imagem padrão no carrinho também
-                    const imageSrc = item.image && item.image.startsWith('https://') 
-                        ? item.image 
-                        : 'https://via.placeholder.com/50?text=Imagem+Indisponível';
                     itemsHTML += `
                         <div class="flex justify-between items-center py-3 border-b">
                             <div class="flex items-center">
-                                <img src="${imageSrc}" alt="${item.name}" class="w-12 h-12 object-contain mr-3">
+                                <img src="${item.image}" alt="${item.name}" class="w-12 h-12 object-contain mr-3">
                                 <div>
                                     <h4 class="font-medium text-gray-800">${item.name}</h4>
                                     <p class="text-sm text-gray-500">R$ ${item.price.toFixed(2)}</p>
