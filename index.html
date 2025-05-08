@@ -1,43 +1,4 @@
-<script type="text/javascript">
-        var gk_isXlsx = false;
-        var gk_xlsxFileLookup = {};
-        var gk_fileData = {};
-        function filledCell(cell) {
-          return cell !== '' && cell != null;
-        }
-        function loadFileData(filename) {
-        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
-            try {
-                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
-                var firstSheetName = workbook.SheetNames[0];
-                var worksheet = workbook.Sheets[firstSheetName];
-
-                // Convert sheet to JSON to filter blank rows
-                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
-                // Filter out blank rows (rows where all cells are empty, null, or undefined)
-                var filteredData = jsonData.filter(row => row.some(filledCell));
-
-                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
-                var headerRowIndex = filteredData.findIndex((row, index) =>
-                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
-                );
-                // Fallback
-                if (headerRowIndex === -1 || headerRowIndex > 25) {
-                  headerRowIndex = 0;
-                }
-
-                // Convert filtered JSON back to CSV
-                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
-                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
-                return csv;
-            } catch (e) {
-                console.error(e);
-                return "";
-            }
-        }
-        return gk_fileData[filename] || "";
-        }
-        </script><!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
@@ -47,7 +8,6 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        /* Custom CSS */
         .product-card:hover {
             transform: translateY(-5px);
             box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
@@ -77,205 +37,143 @@
             transform: scale(1.1);
             transition: transform 0.3s ease;
         }
+        .no-products {
+            text-align: center;
+            color: #6b7280;
+            font-size: 1.2rem;
+            margin-top: 2rem;
+        }
     </style>
 </head>
 <body class="bg-gray-100 font-sans">
     <!-- Header -->
-    <header class="bg-white shadow-md sticky top-0 z-50">
-        <div class="container mx-auto px-4 py-3 flex justify-between items-center">
-            <div class="flex items-center">
-                <i class="fas fa-store text-blue-500 text-2xl mr-2"></i>
-                <h1 class="text-xl font-bold text-gray-800">gcm-imports</h1>
-            </div>
+    <header class="bg-white shadow-md">
+        <div class="container mx-auto px-4 py-4 flex justify-between items-center">
+            <h1 class="text-2xl font-bold text-gray-800">Gcm-imports</h1>
             <div class="flex items-center space-x-4">
-                <div class="relative">
-                    <button id="cart-btn" class="text-gray-700 hover:text-blue-500">
-                        <i class="fas fa-shopping-cart text-xl"></i>
-                        <span id="cart-count" class="cart-notification hidden">0</span>
-                    </button>
-                </div>
-                <div class="relative">
-                    <button id="profile-btn" class="text-gray-700 hover:text-blue-500">
-                        <i class="fas fa-user-cog text-xl"></i>
-                    </button>
-                </div>
+                <button id="cart-btn" class="relative text-gray-600 hover:text-blue-500">
+                    <i class="fas fa-shopping-cart text-xl"></i>
+                    <span id="cart-count" class="cart-notification hidden">0</span>
+                </button>
+                <button id="profile-btn" class="text-gray-600 hover:text-blue-500">
+                    <i class="fas fa-user text-xl"></i>
+                </button>
             </div>
         </div>
     </header>
 
-    <!-- Main Content -->
+    <!-- Main -->
     <main class="container mx-auto px-4 py-8">
-        <!-- Categories -->
-        <div class="mb-8">
-            <h2 class="text-2xl font-bold text-gray-800 mb-4">Categorias</h2>
-            <div id="categories-container" class="flex flex-wrap gap-2">
-                <!-- Categories will be loaded dynamically -->
-            </div>
-        </div>
-
-        <!-- Sort Options -->
-        <div class="mb-6 flex justify-between items-center">
-            <h2 class="text-2xl font-bold text-gray-800">Produtos</h2>
-            <div class="relative">
-                <select id="sort-options" class="appearance-none bg-white border border-gray-300 rounded-md px-4 py-2 pr-8 focus:outline-none focus:ring-2 focus:ring-blue-500">
+        <div class="flex flex-col md:flex-row justify-between items-center mb-8">
+            <div id="categories-container" class="flex space-x-2 overflow-x-auto"></div>
+            <div class="mt-4 md:mt-0">
+                <select id="sort-options" class="border rounded-md px-3 py-2">
                     <option value="random">Ordenar por: Aleatório</option>
-                    <option value="price-high">Maior preço</option>
-                    <option value="price-low">Menor preço</option>
-                    <option value="popular">Mais vendidos</option>
+                    <option value="price-high">Preço: Maior para Menor</option>
+                    <option value="price-low">Preço: Menor para Maior</option>
+                    <option value="popular">Popularidade</option>
                 </select>
-                <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
-                    <i class="fas fa-chevron-down"></i>
-                </div>
             </div>
         </div>
-
-        <!-- Products Grid -->
-        <div id="products-container" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            <!-- Products will be loaded here by JavaScript -->
-        </div>
+        <div id="products-container" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6"></div>
     </main>
 
     <!-- Footer -->
     <footer class="bg-gray-800 text-white py-8">
-        <div class="container mx-auto px-4">
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-                <div class="flex items-center">
-                    <i class="fas fa-map-marker-alt text-blue-400 text-xl mr-3"></i>
-                    <div>
-                        <h3 class="font-bold mb-1">Cidade</h3>
-                        <p class="text-gray-300">Tupi Paulista-Sp</p>
-                    </div>
-                </div>
-                <div class="flex items-center">
-                    <i class="fas fa-road text-blue-400 text-xl mr-3"></i>
-                    <div>
-                        <h3 class="font-bold mb-1">Rua</h3>
-                        <p class="text-gray-300">ada favaro froio, 405</p>
-                    </div>
-                </div>
-                <div class="flex items-center">
-                    <i class="fas fa-phone-alt text-blue-400 text-xl mr-3"></i>
-                    <div>
-                        <h3 class="font-bold mb-1">Contato</h3>
-                        <p class="text-gray-300">+55 (18) 99676-2614</p>
-                    </div>
-                </div>
-            </div>
-            <div class="mt-8 pt-6 border-t border-gray-700 text-center">
-                <h3 class="text-lg font-bold mb-4">Redes Sociais</h3>
-                <div class="flex justify-center space-x-6">
-                    <a href="https://www.instagram.com/gcm_imports_e_perfume?utm_source=ig_web_button_share_sheet&igsh=ZDNlZDc0MzIxNw==" target="_blank" class="social-icon text-pink-500 hover:text-pink-400 text-2xl">
-                        <i class="fab fa-instagram"></i>
-                    </a>
-                    <a href="https://www.facebook.com/gcm.imports2024" target="_blank" class="social-icon text-blue-400 hover:text-blue-300 text-2xl">
-                        <i class="fab fa-facebook"></i>
-                    </a>
-                    <a href="https://wa.me/5518996762614?text" target="_blank" class="social-icon text-green-400 hover:text-green-300 text-2xl">
-                        <i class="fab fa-whatsapp"></i>
-                    </a>
-                </div>
-            </div>
-            <div class="mt-6 text-center text-gray-400 text-sm">
-                <p>© 2023 TechStyle Store. Todos os direitos reservados.</p>
+        <div class="container mx-auto px-4 text-center">
+            <p class="mb-4">© 2025 Gcm-imports. Todos os direitos reservados.</p>
+            <div class="flex justify-center space-x-4">
+                <a href="https://instagram.com" target="_blank" class="social-icon text-gray-400 hover:text-white">
+                    <i class="fab fa-instagram text-2xl"></i>
+                </a>
+                <a href="https://facebook.com" target="_blank" class="social-icon text-gray-400 hover:text-white">
+                    <i class="fab fa-facebook text-2xl"></i>
+                </a>
+                <a href="https://whatsapp.com" target="_blank" class="social-icon text-gray-400 hover:text-white">
+                    <i class="fab fa-whatsapp text-2xl"></i>
+                </a>
             </div>
         </div>
     </footer>
 
     <!-- Cart Modal -->
-    <div id="cart-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden modal">
-        <div class="bg-white rounded-lg shadow-xl w-full max-w-md max-h-[80vh] overflow-hidden">
-            <div class="flex justify-between items-center border-b px-6 py-4">
-                <h3 class="text-xl font-bold text-gray-800">Seu Carrinho 🛒</h3>
-                <button id="close-cart" class="text-gray-500 hover:text-gray-700">
+    <div id="cart-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden">
+        <div class="bg-white rounded-lg p-6 w-full max-w-md">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-bold">Carrinho</h2>
+                <button id="close-cart" class="text-gray-600 hover:text-gray-800">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
-            <div id="cart-items" class="p-6 overflow-y-auto max-h-[50vh]">
-                <!-- Cart items will be loaded here -->
-                <p id="empty-cart-message" class="text-gray-500 text-center py-4">Seu carrinho está vazio</p>
+            <div id="empty-cart-message" class="text-center text-gray-500">
+                Seu carrinho está vazio.
             </div>
-            <div class="border-t px-6 py-4 bg-gray-50">
-                <div class="flex justify-between mb-4">
-                    <span class="font-bold">Total:</span>
-                    <span id="cart-total" class="font-bold text-blue-600">R$ 0,00</span>
-                </div>
-                <button id="checkout-btn" class="w-full bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded-md font-medium transition disabled:opacity-50" disabled>
-                    Finalizar Compra <i class="fas fa-arrow-right ml-2"></i>
-                </button>
+            <div id="cart-items" class="max-h-64 overflow-y-auto"></div>
+            <div class="mt-4 flex justify-between items-center">
+                <span class="font-bold">Total:</span>
+                <span id="cart-total" class="font-bold">R$ 0.00</span>
             </div>
+            <button id="checkout-btn" class="w-full bg-blue-500 text-white py-2 rounded-md mt-4 hover:bg-blue-600 disabled:bg-gray-400" disabled>
+                Finalizar Compra
+            </button>
         </div>
     </div>
 
     <!-- Admin Login Modal -->
-    <div id="admin-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden modal">
-        <div class="bg-white rounded-lg shadow-xl w-full max-w-md">
-            <div class="flex justify-between items-center border-b px-6 py-4">
-                <h3 class="text-xl font-bold text-gray-800">Área do Administrador 🔒</h3>
-                <button id="close-admin" class="text-gray-500 hover:text-gray-700">
+    <div id="admin-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden">
+        <div class="bg-white rounded-lg p-6 w-full max-w-md">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-bold">Login do Administrador</h2>
+                <button id="close-admin" class="text-gray-600 hover:text-gray-800">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
-            <div class="p-6">
-                <form id="admin-form" class="space-y-4">
-                    <div>
-                        <label for="admin-email" class="block text-sm font-medium text-gray-700 mb-1">E-mail</label>
-                        <input type="email" id="admin-email" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required>
-                    </div>
-                    <div>
-                        <label for="admin-password" class="block text-sm font-medium text-gray-700 mb-1">Senha</label>
-                        <input type="password" id="admin-password" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required>
-                    </div>
-                    <button type="submit" class="w-full bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded-md font-medium transition">
-                        Entrar <i class="fas fa-sign-in-alt ml-2"></i>
-                    </button>
-                </form>
-            </div>
+            <form id="admin-form">
+                <div class="mb-4">
+                    <label for="admin-email" class="block text-gray-700">Email</label>
+                    <input type="email" id="admin-email" class="w-full border rounded-md px-3 py-2" required>
+                </div>
+                <div class="mb-4">
+                    <label for="admin-password" class="block text-gray-700">Senha</label>
+                    <input type="password" id="admin-password" class="w-full border rounded-md px-3 py-2" required>
+                </div>
+                <button type="submit" class="w-full bg-blue-500 text-white py-2 rounded-md hover:bg-blue-600">
+                    Entrar
+                </button>
+            </form>
         </div>
     </div>
 
     <!-- Checkout Modal -->
-    <div id="checkout-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden modal">
-        <div class="bg-white rounded-lg shadow-xl w-full max-w-md">
-            <div class="flex justify-between items-center border-b px-6 py-4">
-                <h3 class="text-xl font-bold text-gray-800">Finalizar Compra 💳</h3>
-                <button id="close-checkout" class="text-gray-500 hover:text-gray-700">
+    <div id="checkout-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden">
+        <div class="bg-white rounded-lg p-6 w-full max-w-md">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-bold">Finalizar Compra</h2>
+                <button id="close-checkout" class="text-gray-600 hover:text-gray-800">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
-            <div class="p-6">
-                <form id="checkout-form" class="space-y-4">
-                    <div>
-                        <label for="client-name" class="block text-sm font-medium text-gray-700 mb-1">Nome Completo</label>
-                        <input type="text" id="client-name" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+            <form id="checkout-form">
+                <div class="mb-4">
+                    <label for="client-name" class="block text-gray-700">Nome</label>
+                    <input type="text" id="client-name" class="w-full border rounded-md px-3 py-2" required>
+                </div>
+                <div class="mb-4">
+                    <label for="client-address" class="block text-gray-700">Endereço</label>
+                    <textarea id="client-address" class="w-full border rounded-md px-3 py-2" required></textarea>
+                </div>
+                <div class="mb-4">
+                    <label class="block text-gray-700">Método de Pagamento</label>
+                    <div class="flex flex-col space-y-2">
+                        <label><input type="radio" name="payment" value="Pix" checked> Pix</label>
+                        <label><input type="radio" name="payment" value="Cartão"> Cartão</label>
+                        <label><input type="radio" name="payment" value="Boleto"> Boleto</label>
                     </div>
-                    <div>
-                        <label for="client-address" class="block text-sm font-medium text-gray-700 mb-1">Endereço</label>
-                        <input type="text" id="client-address" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Forma de Pagamento</label>
-                        <div class="space-y-2">
-                            <div class="flex items-center">
-                                <input type="radio" id="payment-pix" name="payment" value="Pix" class="h-4 w-4 text-blue-600 focus:ring-blue-500" checked>
-                                <label for="payment-pix" class="ml-2 block text-sm text-gray-700">Pix</label>
-                            </div>
-                            <div class="flex items-center">
-                                <input type="radio" id="payment-money" name="payment" value="Dinheiro" class="h-4 w-4 text-blue-600 focus:ring-blue-500">
-                                <label for="payment-money" class="ml-2 block text-sm text-gray-700">Dinheiro</label>
-                            </div>
-                            <div class="flex items-center">
-                                <input type="radio" id="payment-card" name="payment" value="Cartão" class="h-4 w-4 text-blue-600 focus:ring-blue-500">
-                                <label for="payment-card" class="ml-2 block text-sm text-gray-700">Cartão</label>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="pt-2">
-                        <button type="submit" class="w-full bg-green-500 hover:bg-green-600 text-white py-2 px-4 rounded-md font-medium transition">
-                            Confirmar Compra <i class="fas fa-check ml-2"></i>
-                        </button>
-                    </div>
-                </form>
-            </div>
+                </div>
+                <button type="submit" class="w-full bg-blue-500 text-white py-2 rounded-md hover:bg-blue-600">
+                    Confirmar Compra
+                </button>
+            </form>
         </div>
     </div>
 
@@ -313,27 +211,28 @@
         let products = [];
         let categories = [];
 
-        // Buscar categorias do Supabase
+        // Funções de busca
         async function fetchCategories() {
             const { data, error } = await supabaseClient.from('categories').select('*');
             if (error) {
                 console.error('Erro ao buscar categorias:', error);
                 return [];
             }
+            console.log('Categorias carregadas:', data); // Log para depuração
             return data;
         }
 
-        // Buscar produtos do Supabase
         async function fetchProducts() {
             const { data, error } = await supabaseClient.from('products').select('*');
             if (error) {
                 console.error('Erro ao buscar produtos:', error);
+                alert('Erro ao carregar produtos. Verifique o console para detalhes.');
                 return [];
             }
+            console.log('Produtos carregados:', data); // Log para depuração
             return data;
         }
 
-        // Carregar botões de categorias
         async function loadCategoryButtons() {
             categories = await fetchCategories();
             categoriesContainer.innerHTML = `
@@ -347,7 +246,6 @@
                 categoriesContainer.appendChild(button);
             });
 
-            // Adicionar eventos aos botões de categoria
             document.querySelectorAll('.category-btn').forEach(btn => {
                 btn.addEventListener('click', () => {
                     document.querySelectorAll('.category-btn').forEach(b => b.classList.remove('active'));
@@ -358,23 +256,24 @@
             });
         }
 
-        // Initialize
         async function init() {
-            products = await fetchProducts();
-            await loadCategoryButtons();
-            renderProducts();
-            setupEventListeners();
+            try {
+                products = await fetchProducts();
+                await loadCategoryButtons();
+                renderProducts();
+                setupEventListeners();
+            } catch (error) {
+                console.error('Erro na inicialização:', error);
+                alert('Erro ao inicializar a página. Verifique o console para detalhes.');
+            }
         }
 
-        // Setup Event Listeners
         function setupEventListeners() {
-            // Sort options
             sortOptions.addEventListener('change', () => {
                 currentSort = sortOptions.value;
                 renderProducts();
             });
 
-            // Cart modal
             cartBtn.addEventListener('click', () => {
                 cartModal.classList.remove('hidden');
             });
@@ -383,7 +282,6 @@
                 cartModal.classList.add('hidden');
             });
 
-            // Admin modal
             profileBtn.addEventListener('click', () => {
                 adminModal.classList.remove('hidden');
             });
@@ -397,7 +295,6 @@
                 const email = document.getElementById('admin-email').value;
                 const password = document.getElementById('admin-password').value;
 
-                // Verificar login com Supabase Auth
                 const { data, error } = await supabaseClient.auth.signInWithPassword({
                     email: email,
                     password: password
@@ -409,11 +306,10 @@
                 } else {
                     alert('Login bem-sucedido! Redirecionando para o painel...');
                     adminModal.classList.add('hidden');
-                    window.location.href = '/admin.html';
+                    window.location.href = '/admin';
                 }
             });
 
-            // Checkout
             checkoutBtn.addEventListener('click', () => {
                 if (cart.length > 0) {
                     cartModal.classList.add('hidden');
@@ -431,10 +327,8 @@
                 const clientAddress = document.getElementById('client-address').value;
                 const paymentMethod = document.querySelector('input[name="payment"]:checked').value;
 
-                // Calculate total
                 const total = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
 
-                // Salvar pedido no Supabase
                 const { error } = await supabaseClient.from('orders').insert({
                     client_name: clientName,
                     client_address: clientAddress,
@@ -449,7 +343,6 @@
                     return;
                 }
 
-                // Create WhatsApp message
                 let message = `🛒 *Nova Compra - GCM-Imports* 🛒\n\n`;
                 message += `🙂 *Cliente:* ${clientName}\n`;
                 message += `📍 *Endereço:* ${clientAddress}\n`;
@@ -463,36 +356,23 @@
                 message += `\n💲 *Total da Compra:* R$ ${total.toFixed(2)}\n\n`;
                 message += `👍 *Obrigado pela preferência!* 👍`;
 
-                // Log the message for debugging
-                console.log('Mensagem para WhatsApp:', message);
-
-                // Encode for URL
                 const encodedMessage = encodeURIComponent(message);
-                console.log('Mensagem codificada:', encodedMessage);
+                const whatsappUrl = `https://wa.me/5518996762614?text=${encodedMessage}`;
 
-                const whatsappUrl = `https://wa.me/5518996762614?text?text=${encodedMessage}`;
-
-                // Open WhatsApp
                 window.open(whatsappUrl, '_blank');
 
-                // Reset cart
                 cart = [];
                 updateCart();
                 checkoutModal.classList.add('hidden');
-
-                // Show success message
                 alert('Compra finalizada com sucesso! Um WhatsApp foi aberto com os detalhes da compra.');
             });
         }
 
-        // Render Products
         function renderProducts() {
-            // Filter by category
             let filteredProducts = currentCategory === 'all'
                 ? [...products]
                 : products.filter(p => p.category === currentCategory);
 
-            // Sort products
             switch (currentSort) {
                 case 'price-high':
                     filteredProducts.sort((a, b) => b.price - a.price);
@@ -507,16 +387,29 @@
                     filteredProducts = [...filteredProducts].sort(() => Math.random() - 0.5);
             }
 
-            // Clear container
             productsContainer.innerHTML = '';
 
-            // Render products
+            if (filteredProducts.length === 0) {
+                productsContainer.innerHTML = `
+                    <p class="no-products">Nenhum produto encontrado.</p>
+                `;
+                console.warn('Nenhum produto para renderizar. Verifique a tabela "products" no Supabase.');
+                return;
+            }
+
             filteredProducts.forEach(product => {
                 const productCard = document.createElement('div');
                 productCard.className = 'product-card bg-white rounded-lg overflow-hidden shadow-md transition duration-300';
+                const isValidImage = product.image && product.image.includes('supabase.co/storage/v1/object/public/product-images/');
+                const imageSrc = isValidImage
+                    ? product.image
+                    : 'https://via.placeholder.com/150?text=Imagem+Indisponível';
+                if (!isValidImage && product.image) {
+                    console.warn(`URL de imagem inválida para o produto ${product.name}: ${product.image}`);
+                }
                 productCard.innerHTML = `
                     <div class="h-48 overflow-hidden">
-                        <img src="${product.image}" alt="${product.name}" class="w-full h-full object-contain">
+                        <img src="${imageSrc}" alt="${product.name}" class="w-full h-full object-contain" loading="lazy">
                     </div>
                     <div class="p-4">
                         <h3 class="font-bold text-lg mb-1 text-gray-800">${product.name}</h3>
@@ -529,7 +422,6 @@
                 productsContainer.appendChild(productCard);
             });
 
-            // Add event listeners to "Add to Cart" buttons
             document.querySelectorAll('.add-to-cart').forEach(btn => {
                 btn.addEventListener('click', () => {
                     const productId = parseInt(btn.dataset.id);
@@ -538,7 +430,6 @@
             });
         }
 
-        // Cart Functions
         function addToCart(productId) {
             const product = products.find(p => p.id === productId);
             if (!product) return;
@@ -552,7 +443,6 @@
 
             updateCart();
 
-            // Show notification
             const notification = document.createElement('div');
             notification.className = 'fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-md shadow-lg flex items-center';
             notification.innerHTML = `
@@ -577,10 +467,17 @@
 
                 let itemsHTML = '';
                 cart.forEach(item => {
+                    const isValidImage = item.image && item.image.includes('supabase.co/storage/v1/object/public/product-images/');
+                    const imageSrc = isValidImage
+                        ? item.image
+                        : 'https://via.placeholder.com/50?text=Imagem+Indisponível';
+                    if (!isValidImage && item.image) {
+                        console.warn(`URL de imagem inválida no carrinho para o produto ${item.name}: ${item.image}`);
+                    }
                     itemsHTML += `
                         <div class="flex justify-between items-center py-3 border-b">
                             <div class="flex items-center">
-                                <img src="${item.image}" alt="${item.name}" class="w-12 h-12 object-contain mr-3">
+                                <img src="${imageSrc}" alt="${item.name}" class="w-12 h-12 object-contain mr-3" loading="lazy">
                                 <div>
                                     <h4 class="font-medium text-gray-800">${item.name}</h4>
                                     <p class="text-sm text-gray-500">R$ ${item.price.toFixed(2)}</p>
@@ -649,10 +546,9 @@
             }
         }
 
-        // Initialize the app
         document.addEventListener('DOMContentLoaded', () => {
             init();
         });
     </script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'93c97e6d0c60bd03',t:'MTc0NjcxMjkzNi4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</body>
 </html>
